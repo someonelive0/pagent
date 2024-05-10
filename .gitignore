@@ -1,0 +1,10 @@
+/.vscode
+/go.sum
+*.exe
+/log/
+/etc/*.yaml
+
+/pagent
+/pagentd
+/target/
+
