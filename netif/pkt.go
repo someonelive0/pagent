@@ -1,4 +1,4 @@
-package main
+package netif
 
 import (
 	"encoding/hex"
@@ -6,27 +6,9 @@ import (
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
-	"github.com/google/gopacket/pcap"
 )
 
-// capture packet from device to chan
-func capif(device string, ch chan gopacket.Packet) error {
-	if handle, err := pcap.OpenLive(device, 1600, true, pcap.BlockForever); err != nil {
-		return err
-	} else if err := handle.SetBPFFilter("tcp and port not 22"); err != nil { // optional
-		return err
-	} else {
-		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-		for pkt := range packetSource.Packets() {
-			// handle_pkt(pkt) // Do something with a packet here.
-			ch <- pkt
-		}
-	}
-
-	return nil
-}
-
-func handle_pkt(pkt gopacket.Packet) error {
+func HandlePkt(pkt gopacket.Packet) error {
 	fmt.Println("---------------------- ", len(pkt.Data()))
 	fmt.Println(pkt.Dump())
 	fmt.Println(hex.Dump(pkt.Data()))
@@ -34,7 +16,7 @@ func handle_pkt(pkt gopacket.Packet) error {
 	return nil
 }
 
-func parse_pkt(pkt gopacket.Packet) error {
+func ParsePkt(pkt gopacket.Packet) error {
 	fmt.Println(pkt.Dump())
 
 	// Let's see if the packet is an ethernet packet
