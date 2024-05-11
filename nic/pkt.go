@@ -1,4 +1,4 @@
-package netif
+package nic
 
 import (
 	"encoding/hex"

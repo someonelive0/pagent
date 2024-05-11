@@ -8,20 +8,22 @@ import (
 	zmq "github.com/go-zeromq/zmq4"
 	"github.com/google/gopacket"
 
-	"pagent/netif"
+	"pagent/nic"
 )
 
 func main() {
-	netif.ListIf()
+	nic.ListIfs()
 	fmt.Println("running...")
 
 	var wg sync.WaitGroup
 	chpkt := make(chan gopacket.Packet, 10000)
+
+	// my local network interface
 	ifname := "\\Device\\NPF_{27B6BF90-838D-43F0-AB4C-AAA823EF3285}"
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		netif.CapIf(ifname, chpkt)
+		nic.CapIf(ifname, chpkt)
 	}()
 
 	wg.Add(1)
@@ -55,7 +57,7 @@ func tozmq(chpkt chan gopacket.Packet) error {
 			return err
 		}
 		count++
-		// netif.HandlePkt(pkt)
+		// nic.HandlePkt(pkt)
 
 		if count%10 == 0 {
 			fmt.Println("---> ", count)

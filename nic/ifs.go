@@ -1,4 +1,4 @@
-package netif
+package nic
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"github.com/google/gopacket/pcap"
 )
 
-func ListIf() ([]pcap.Interface, error) {
+func ListIfs() ([]pcap.Interface, error) {
 	// 得到所有的(网络)设备
 	devices, err := pcap.FindAllDevs()
 	if err != nil {

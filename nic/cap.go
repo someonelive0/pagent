@@ -1,13 +1,15 @@
-package netif
+package nic
 
 import (
+	"log"
+
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
 )
 
 // capture packet from device to chan
 func CapIf(device string, ch chan gopacket.Packet) error {
-	if handle, err := pcap.OpenLive(device, 1600, true, pcap.BlockForever); err != nil {
+	if handle, err := pcap.OpenLive(device, 65536, false, pcap.BlockForever); err != nil {
 		return err
 	} else if err := handle.SetBPFFilter("tcp and port not 22"); err != nil { // optional
 		return err
@@ -16,6 +18,23 @@ func CapIf(device string, ch chan gopacket.Packet) error {
 		for pkt := range packetSource.Packets() {
 			// handle_pkt(pkt) // Do something with a packet here.
 			ch <- pkt
+		}
+	}
+
+	return nil
+}
+
+func WriteIf(device string, ch chan []byte) error {
+	handle, err := pcap.OpenLive(device, 65536, false, pcap.BlockForever)
+	if err != nil {
+		log.Printf("OpenLive failed: %s", err)
+		return err
+	}
+
+	for frame := range ch {
+		err := handle.WritePacketData(frame)
+		if err != nil {
+			log.Printf("WritePacketData failed: %s", err)
 		}
 	}
 
