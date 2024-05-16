@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"pagent/nic"
 	"sync"
@@ -48,17 +49,25 @@ func myserver(chpkt chan []byte) error {
 	for {
 		msg, err := socket.Recv()
 		if err != nil {
-			fmt.Printf("receiving: %s\n", err)
+			if err == io.EOF {
+				// EOF reached
+				fmt.Printf("receiving EOF %s\n", socket.Addr())
+			} else {
+				fmt.Printf("receiving: %s\n", err)
+				continue
+			}
 		}
 
 		b := msg.Clone().Bytes()
 		fmt.Println("Received type ", msg.Type, count, len(b))
 
 		if len(b) > 0 { // 最后一个包可能出现长度为0
+			// fmt.Println(hex.Dump(b))
+
 			chpkt <- b
 		}
 
-		// fmt.Println("Received ", msg.Bytes())
+		// fmt.Println("chpkt ", len(chpkt))
 		count++
 
 		// Do some 'work'
@@ -66,7 +75,12 @@ func myserver(chpkt chan []byte) error {
 	}
 }
 
-// func tonic(device string, chpkt chan []byte) error {
+func tonic(device string, chpkt chan []byte) error {
 
-// 	return nil
-// }
+	err := nic.WriteIf(device, chpkt)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

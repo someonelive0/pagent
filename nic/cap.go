@@ -1,6 +1,7 @@
 package nic
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/google/gopacket"
@@ -18,6 +19,10 @@ func CapIf(device string, ch chan gopacket.Packet) error {
 		for pkt := range packetSource.Packets() {
 			// handle_pkt(pkt) // Do something with a packet here.
 			ch <- pkt
+
+			if len(ch) > 98 {
+				fmt.Println("chan pkt is ", len(ch))
+			}
 		}
 	}
 
@@ -25,7 +30,7 @@ func CapIf(device string, ch chan gopacket.Packet) error {
 }
 
 func WriteIf(device string, ch chan []byte) error {
-	handle, err := pcap.OpenLive(device, 65536, false, pcap.BlockForever)
+	handle, err := pcap.OpenLive(device, 65536, true, pcap.BlockForever)
 	if err != nil {
 		log.Printf("OpenLive failed: %s", err)
 		return err
