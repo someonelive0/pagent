@@ -75,7 +75,7 @@ func myserver(chpkt chan []byte) error {
 	}
 }
 
-func tonic(device string, chpkt chan []byte) error {
+func toNic(device string, chpkt chan []byte) error {
 
 	err := nic.WriteIf(device, chpkt)
 	if err != nil {

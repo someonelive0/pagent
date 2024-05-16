@@ -23,7 +23,7 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		nic.CapIf(ifname, chpkt)
+		nic.CapIf0(ifname, chpkt)
 	}()
 
 	wg.Add(1)

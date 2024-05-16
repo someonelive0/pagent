@@ -10,19 +10,70 @@ import (
 
 // capture packet from device to chan
 func CapIf(device string, ch chan gopacket.Packet) error {
-	if handle, err := pcap.OpenLive(device, 65536, false, pcap.BlockForever); err != nil {
+	handle, err := pcap.OpenLive(device, 65536, false, pcap.BlockForever)
+	if err != nil {
 		return err
-	} else if err := handle.SetBPFFilter("tcp and port not 22"); err != nil { // optional
-		return err
-	} else {
-		packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
-		for pkt := range packetSource.Packets() {
-			// handle_pkt(pkt) // Do something with a packet here.
-			ch <- pkt
+	}
+	defer handle.Close()
 
-			if len(ch) > 98 {
-				fmt.Println("chan pkt is ", len(ch))
-			}
+	if err = handle.SetBPFFilter("tcp and port not 22"); err != nil { // optional
+		return err
+	}
+
+	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	for pkt := range packetSource.Packets() {
+		// handle_pkt(pkt) // Do something with a packet here.
+		ch <- pkt
+
+		if len(ch) > 98 {
+			fmt.Println("chan pkt is ", len(ch))
+		}
+	}
+
+	return nil
+}
+
+// use libpcap level functions
+func CapIf0(device string, ch chan gopacket.Packet) error {
+	inHandle, err := pcap.NewInactiveHandle(device)
+	if err != nil {
+		return err
+	}
+	defer inHandle.CleanUp()
+
+	if err = inHandle.SetSnapLen(65536); err != nil {
+		return err
+	}
+	if err = inHandle.SetPromisc(false); err != nil {
+		return err
+	}
+	if err = inHandle.SetTimeout(pcap.BlockForever); err != nil {
+		return err
+	}
+	if err = inHandle.SetImmediateMode(true); err != nil { // packets are delivered to the application as soon as they arrive
+		return err
+	}
+	if err = inHandle.SetBufferSize(30 * 1024 * 1024); err != nil {
+		return err
+	}
+
+	handle, err := inHandle.Activate()
+	if err != nil {
+		return err
+	}
+	defer handle.Close()
+
+	if err = handle.SetBPFFilter("tcp and port not 22"); err != nil { // optional
+		return err
+	}
+
+	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
+	for pkt := range packetSource.Packets() {
+		// handle_pkt(pkt) // Do something with a packet here.
+		ch <- pkt
+
+		if len(ch) > 98 {
+			fmt.Println("chan pkt is ", len(ch))
 		}
 	}
 
