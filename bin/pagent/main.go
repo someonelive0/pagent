@@ -46,6 +46,7 @@ func tozmq(chpkt chan gopacket.Packet) error {
 		return fmt.Errorf("listening: %w", err)
 	}
 	fmt.Println("connect tcp://127.0.0.1:9266 ok")
+	socket.SetOption(zmq.OptionHWM, 1)
 
 	count := 0
 	for pkt := range chpkt {

@@ -67,6 +67,12 @@ func CapIf0(device string, ch chan gopacket.Packet) error {
 		return err
 	}
 
+	// such as: []pcap.Datalink{pcap.Datalink{Name:"EN10MB", Description:"Ethernet"}, pcap.Datalink{Name:"DOCSIS", Description:"DOCSIS"}}
+	datalinks, err := handle.ListDataLinks()
+	if err == nil {
+		fmt.Printf("pcap datalinks %#v\n", datalinks)
+	}
+
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	for pkt := range packetSource.Packets() {
 		// handle_pkt(pkt) // Do something with a packet here.
@@ -74,6 +80,12 @@ func CapIf0(device string, ch chan gopacket.Packet) error {
 
 		if len(ch) > 98 {
 			fmt.Println("chan pkt is ", len(ch))
+			stats, err := handle.Stats()
+			if err != nil {
+				fmt.Println("pcap stat failed ", err)
+			} else {
+				fmt.Printf("pcap stats %#v\n", *stats)
+			}
 		}
 	}
 
