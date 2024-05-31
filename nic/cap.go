@@ -57,6 +57,18 @@ func CapIf0(device string, ch chan gopacket.Packet) error {
 		return err
 	}
 
+	timestampsrc := inHandle.SupportedTimestamps()
+	fmt.Printf("SupportedTimestamps %#v\n", timestampsrc)
+	for i := range timestampsrc {
+		fmt.Printf("  SupportedTimestamp %d, %s\n", timestampsrc[i], timestampsrc[i].String())
+
+	}
+	// SupportedTimestamp 0, host
+	// SupportedTimestamp 5, host_hiprec_unsynced
+	// SupportedTimestamp 1, host_lowprec
+	// SupportedTimestamp 2, host_hiprec
+	inHandle.SetTimestampSource(0) // set timestamp source to host or host_lowprec
+
 	handle, err := inHandle.Activate()
 	if err != nil {
 		return err

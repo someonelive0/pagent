@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"sync"
 
@@ -50,7 +52,21 @@ func tozmq(chpkt chan gopacket.Packet) error {
 
 	count := 0
 	for pkt := range chpkt {
-		m := zmq.NewMsg(pkt.Data())
+		a, _ := pkt.Metadata().CaptureInfo.Timestamp.MarshalText()
+		fmt.Printf("timestmp: %d, %d = %d  len %d, %d  - %s\n",
+			pkt.Metadata().CaptureInfo.Timestamp.Unix(),
+			pkt.Metadata().CaptureInfo.Timestamp.Nanosecond()/1000, // micro-second = nanosecond/1000
+			pkt.Metadata().CaptureInfo.Timestamp.UnixMicro(),
+			pkt.Metadata().CaptureInfo.CaptureLength, pkt.Metadata().CaptureInfo.Length, a)
+		var buf = make([]byte, 8)
+		binary.LittleEndian.PutUint32(buf, uint32(pkt.Metadata().CaptureInfo.Timestamp.Unix()))
+		binary.LittleEndian.PutUint32(buf[4:], uint32(pkt.Metadata().CaptureInfo.Timestamp.Nanosecond()/1000))
+		fmt.Println(hex.Dump(buf))
+
+		pcaphdr := nic.NewPcapHdr(&pkt.Metadata().CaptureInfo)
+		hdrbuf := pcaphdr.Marshal()
+
+		m := zmq.NewMsg(append(hdrbuf, pkt.Data()...))
 		m.Type = zmq.CmdMsg
 		err := socket.Send(m)
 		if err != nil {

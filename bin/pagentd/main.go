@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
@@ -62,7 +63,7 @@ func myserver(chpkt chan []byte) error {
 		fmt.Println("Received type ", msg.Type, count, len(b))
 
 		if len(b) > 0 { // 最后一个包可能出现长度为0
-			// fmt.Println(hex.Dump(b))
+			fmt.Println(hex.Dump(b))
 
 			chpkt <- b
 		}
