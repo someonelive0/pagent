@@ -85,13 +85,16 @@ func CapIf0(device string, ch chan gopacket.Packet) error {
 		fmt.Printf("pcap datalinks %#v\n", datalinks)
 	}
 
+	drop_count := 0
 	packetSource := gopacket.NewPacketSource(handle, handle.LinkType())
 	for pkt := range packetSource.Packets() {
 		// handle_pkt(pkt) // Do something with a packet here.
-		ch <- pkt
 
-		if len(ch) > 98 {
-			fmt.Println("chan pkt is ", len(ch))
+		select {
+		case ch <- pkt:
+		default: // if chan is full then drop pkt
+			fmt.Printf("chan pkt is full, drop pkt count %d\n", drop_count)
+			drop_count++
 			stats, err := handle.Stats()
 			if err != nil {
 				fmt.Println("pcap stat failed ", err)
@@ -99,6 +102,16 @@ func CapIf0(device string, ch chan gopacket.Packet) error {
 				fmt.Printf("pcap stats %#v\n", *stats)
 			}
 		}
+
+		// if len(ch) > 98 {
+		// 	fmt.Println("chan pkt is ", len(ch))
+		// 	stats, err := handle.Stats()
+		// 	if err != nil {
+		// 		fmt.Println("pcap stat failed ", err)
+		// 	} else {
+		// 		fmt.Printf("pcap stats %#v\n", *stats)
+		// 	}
+		// }
 	}
 
 	return nil
