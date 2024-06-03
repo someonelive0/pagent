@@ -9,17 +9,19 @@ import (
 	"github.com/google/gopacket"
 
 	"pagent/nic"
+	"pagent/utils"
 )
 
 func main() {
-	nic.ListIfs()
+	// nic.ListIfs()
 	fmt.Println("running...")
 
 	var wg sync.WaitGroup
 	chpkt := make(chan gopacket.Packet, 100)
 
 	// my local network interface
-	ifname := "\\Device\\NPF_{27B6BF90-838D-43F0-AB4C-AAA823EF3285}"
+	// ifname := "\\Device\\NPF_{27B6BF90-838D-43F0-AB4C-AAA823EF3285}"
+	ifname := "\\Device\\NPF_Loopback"
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -33,6 +35,19 @@ func main() {
 			output(chpkt)
 		}
 	}()
+
+	cpuusage, err := utils.ProcCpuUsage()
+	if err != nil {
+		fmt.Println("get cpu usage failed ", err)
+	} else {
+		fmt.Println("get cpu usage ", cpuusage)
+	}
+	memusage, err := utils.ProcMemUsage()
+	if err != nil {
+		fmt.Println("get mem usage failed ", err)
+	} else {
+		fmt.Println("get mem usage ", memusage)
+	}
 
 	wg.Wait()
 }
