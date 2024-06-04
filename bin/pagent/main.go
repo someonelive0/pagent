@@ -2,26 +2,67 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
+	"os"
 	"sync"
+	"time"
 
 	zmq "github.com/go-zeromq/zmq4"
 	"github.com/google/gopacket"
+	log "github.com/sirupsen/logrus"
 
 	"pagent/nic"
 	"pagent/utils"
 )
 
+var (
+	arg_debug   = flag.Bool("D", false, "debug")
+	arg_version = flag.Bool("v", false, "version")
+	arg_list    = flag.Bool("l", false, "list devices")
+	arg_config  = flag.String("f", "etc/pagent.yaml", "config filename")
+	START_TIME  = time.Now()
+)
+
+func init() {
+	flag.Parse()
+	if *arg_version {
+		fmt.Printf("%s\n", utils.Version("pagent"))
+		os.Exit(0)
+	}
+	if *arg_list {
+		nic.ListIfs()
+		os.Exit(0)
+	}
+
+	utils.ShowBannerForApp("pagent", utils.APP_VERSION, utils.BUILD_TIME)
+	utils.Chdir2PrgPath()
+	pwd, _ := utils.GetPrgDir()
+	fmt.Println("pwd:", pwd)
+	if err := utils.InitLog("pagent.log", *arg_debug); err != nil {
+		fmt.Printf("init log failed: %s\n", err)
+		os.Exit(1)
+	}
+	log.Infof("BEGIN... %v, config=%v, debug=%v",
+		START_TIME.Format(time.DateTime), *arg_config, *arg_debug)
+}
+
 func main() {
-	// nic.ListIfs()
-	fmt.Println("running...")
+
+	// load config
+	var myconfig, err = LoadConfig(*arg_config)
+	if err != nil {
+		log.Errorf("loadConfig error %s", err)
+		os.Exit(1)
+	}
+	log.Infof("myconfig: %s", myconfig.Dump())
 
 	var wg sync.WaitGroup
 	chpkt := make(chan gopacket.Packet, 100)
 
 	// my local network interface
 	// ifname := "\\Device\\NPF_{27B6BF90-838D-43F0-AB4C-AAA823EF3285}"
-	ifname := "\\Device\\NPF_Loopback"
+	ifname := myconfig.CaptureConfig.Devices[0] // "\\Device\\NPF_Loopback"
 	wg.Add(1)
 	go func() {
 		defer wg.Done()

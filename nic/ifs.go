@@ -16,12 +16,12 @@ func ListIfs() ([]pcap.Interface, error) {
 	fmt.Println("Devices found: ", len(devices))
 	for _, device := range devices {
 		fmt.Println("\nName: ", device.Name)
-		fmt.Println("Description: ", device.Description)
-		fmt.Println("Devices addresses: ", device.Description)
-		fmt.Println("Flags: ", device.Flags)
+		fmt.Println("    Description: ", device.Description)
+		fmt.Println("    Devices addresses: ", device.Description)
+		fmt.Println("    Flags: ", device.Flags)
 		for _, address := range device.Addresses {
-			fmt.Println("    - IP address: ", address.IP)
-			fmt.Println("    - Subnet mask: ", address.Netmask)
+			fmt.Println("      - IP address: ", address.IP)
+			fmt.Println("      - Subnet mask: ", address.Netmask)
 		}
 	}
 
