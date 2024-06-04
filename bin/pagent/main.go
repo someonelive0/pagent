@@ -48,7 +48,6 @@ func init() {
 }
 
 func main() {
-
 	// load config
 	var myconfig, err = LoadConfig(*arg_config)
 	if err != nil {

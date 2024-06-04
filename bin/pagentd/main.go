@@ -3,16 +3,59 @@ package main
 import (
 	"context"
 	"encoding/hex"
+	"flag"
 	"fmt"
 	"io"
-	"log"
+	"os"
 	"pagent/nic"
 	"sync"
+	"time"
 
 	zmq "github.com/go-zeromq/zmq4"
+	log "github.com/sirupsen/logrus"
+
+	"pagent/utils"
 )
 
+var (
+	arg_debug   = flag.Bool("D", false, "debug")
+	arg_version = flag.Bool("v", false, "version")
+	arg_list    = flag.Bool("l", false, "list devices")
+	arg_config  = flag.String("f", "etc/pagentd.yaml", "config filename")
+	START_TIME  = time.Now()
+)
+
+func init() {
+	flag.Parse()
+	if *arg_version {
+		fmt.Printf("%s\n", utils.Version("pagentd"))
+		os.Exit(0)
+	}
+	if *arg_list {
+		nic.ListIfs()
+		os.Exit(0)
+	}
+
+	utils.ShowBannerForApp("pagentd", utils.APP_VERSION, utils.BUILD_TIME)
+	utils.Chdir2PrgPath()
+	pwd, _ := utils.GetPrgDir()
+	fmt.Println("pwd:", pwd)
+	if err := utils.InitLog("pagentd.log", *arg_debug); err != nil {
+		fmt.Printf("init log failed: %s\n", err)
+		os.Exit(1)
+	}
+	log.Infof("BEGIN... %v, config=%v, debug=%v",
+		START_TIME.Format(time.DateTime), *arg_config, *arg_debug)
+}
+
 func main() {
+	// load config
+	var myconfig, err = LoadConfig(*arg_config)
+	if err != nil {
+		log.Errorf("loadConfig error %s", err)
+		os.Exit(1)
+	}
+	log.Infof("myconfig: %s", myconfig.Dump())
 
 	var wg sync.WaitGroup
 	chpkt := make(chan []byte, 10000)
@@ -20,23 +63,22 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if err := myserver(chpkt); err != nil {
+		if err := zmq_pull(chpkt); err != nil {
 			log.Printf("myserver: %s\n", err)
 		}
 	}()
 
-	// to Devices addresses:  VirtualBox Host-Only Ethernet Adapter
-	ifname := "\\Device\\NPF_{787AEC74-906E-45D7-AFE4-FCD4CF3E3F32}"
+	// to Devices name
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		nic.WriteIf(ifname, chpkt)
+		nic.WriteIf(myconfig.PcapOutput.Device, chpkt)
 	}()
 
 	wg.Wait()
 }
 
-func myserver(chpkt chan []byte) error {
+func zmq_pull(chpkt chan []byte) error {
 	ctx := context.Background()
 	// Socket to talk to clients
 	socket := zmq.NewPull(ctx)

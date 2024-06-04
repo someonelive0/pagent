@@ -2,11 +2,11 @@ VERSION=3.0.0
 PREFIX=target/pagent-$(VERSION)
 
 # go command for linux and windows.
-GO=CGO_ENABLED=0 go
+GO=CGO_ENABLED=1 go
 PARAMS=-ldflags '-s -w -extldflags "-static"'
 
 # if want to link static libpcap.a then 
-# go build -ldflags '-s -w -extldflags "-L/usr/local/libpcap-1.10.4/lib -lpcap"' ./bin/pagent
+#  CGO_CFLAGS="-I/usr/local/libpcap-1.10.4/include" go build -ldflags '-s -w -extldflags "-L/usr/local/libpcap-1.10.4/lib -lpcap"' ./bin/pagent
 # remember setcap 'CAP_NET_RAW,CAP_NET_ADMIN,CAP_DAC_OVERRIDE+ep' pagent
 
 # upx is a tool to compress executable program.

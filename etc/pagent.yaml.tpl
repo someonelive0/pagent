@@ -33,6 +33,5 @@ capture:
 
 # zeromq 输出
 zeromq:
-  servers:
-    - 127.0.0.1:9266
+  addrs:
     - 127.0.0.1:9266

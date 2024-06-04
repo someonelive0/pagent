@@ -15,26 +15,21 @@ type MyConfig struct {
 	Filename string    `yaml:"filename" json:"filename" xml:"filename,attr"`
 	LoadTime time.Time `yaml:"load_time" json:"load_time" xml:"load_time,attr"`
 
-	Version     string `yaml:"version" json:"version"`
-	Host        string `yaml:"host" json:"host"`
-	ManagePort  int    `yaml:"manage_port" json:"manage_port" `
-	TenantId    int    `yaml:"tenant_id" json:"tenant_id" `
-	CpuNumber   int    `yaml:"cpu_number" json:"cpu_number"`
-	ChannelSize int    `yaml:"channel_size" json:"channel_size"`
+	Version    string `yaml:"version" json:"version"`
+	Host       string `yaml:"host" json:"host"`
+	ManagePort int    `yaml:"manage_port" json:"manage_port" `
 
-	CaptureConfig CaptureConfig `yaml:"capture" json:"capture"`
-	ZmqConfig     ZmqConfig     `yaml:"zeromq" json:"zeromq"`
+	PcapOutput  PcapOutput  `yaml:"pcap_output" json:"pcap_output"`
+	RedisConfig RedisConfig `yaml:"redis" json:"redis"`
 }
 
-type CaptureConfig struct {
-	Devices        []string `yaml:"devices" json:"devices"`
-	Filter         string   `yaml:"filter" json:"filter"`
-	Snaplen        string   `yaml:"snaplen" json:"snaplen"`
-	PcapBufferSize int      `yaml:"pcap_buffer_size" json:"pcap_buffer_size"`
+type PcapOutput struct {
+	Device string `yaml:"device" json:"device"`
 }
 
-type ZmqConfig struct {
-	Addrs []string `yaml:"addrs" json:"addrs"`
+type RedisConfig struct {
+	Addrs    []string `yaml:"addrs" json:"addrs"`
+	Password string   `yaml:"password" json:"password"`
 }
 
 func (p *MyConfig) Dump() []byte {

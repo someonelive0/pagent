@@ -2,10 +2,10 @@ package nic
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/pcap"
+	log "github.com/sirupsen/logrus"
 )
 
 // capture packet from device to chan
