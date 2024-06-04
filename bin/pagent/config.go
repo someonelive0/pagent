@@ -29,6 +29,7 @@ type MyConfig struct {
 type CaptureConfig struct {
 	Devices        []string `yaml:"devices" json:"devices"`
 	Filter         string   `yaml:"filter" json:"filter"`
+	Promisc        bool     `yaml:"promisc" json:"promisc"`
 	Snaplen        string   `yaml:"snaplen" json:"snaplen"`
 	PcapBufferSize int      `yaml:"pcap_buffer_size" json:"pcap_buffer_size"`
 }

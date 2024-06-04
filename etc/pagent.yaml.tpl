@@ -22,7 +22,10 @@ capture:
     - \Device\NPF_Loopback
 
   # 设置网卡采集过滤器，libpcap语法, 支持最大长度200
-  filter: tcp and not port 9265 and not port 9266
+  filter: tcp and not port 9265 and not port 9266 and not port 22
+
+  # 是否网卡成杂凑模式，默认 false 
+  promisc: false
 
   # pcap抓包参数，一次抓包的数据大小，默认为1518 单位 b
   snaplen: 65536

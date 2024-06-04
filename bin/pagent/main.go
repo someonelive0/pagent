@@ -72,7 +72,7 @@ func main() {
 	go func() {
 		defer wg.Done()
 		for {
-			output(chpkt)
+			output(chpkt, &myconfig.ZmqConfig)
 		}
 	}()
 
@@ -92,30 +92,34 @@ func main() {
 	wg.Wait()
 }
 
-func output(chpkt chan gopacket.Packet) error {
-	chszmq := make([]chan []byte, 3)
-	chszmq[0] = make(chan []byte, 1)
-	chszmq[1] = make(chan []byte, 1)
-	chszmq[2] = make(chan []byte, 1)
+func output(chpkt chan gopacket.Packet, zmqConfig *ZmqConfig) error {
+	ch_zmqs := make([]chan []byte, len(zmqConfig.Addrs))
+	for i := range zmqConfig.Addrs {
+		ch_zmqs[i] = make(chan []byte, 1)
+	}
 
-	for i := range chszmq {
+	for i := range zmqConfig.Addrs {
 		go func(i int) {
-			tozmq(chszmq[i], "tcp://127.0.0.1:9266")
+			tozmq(ch_zmqs[i], zmqConfig.Addrs[i])
 		}(i)
 	}
 
 	count := 0
 	for pkt := range chpkt {
-		a, _ := pkt.Metadata().CaptureInfo.Timestamp.MarshalText()
-		fmt.Printf("timestmp: %d, %d = %d  len %d, %d  - %s\n",
-			pkt.Metadata().CaptureInfo.Timestamp.Unix(),
-			pkt.Metadata().CaptureInfo.Timestamp.Nanosecond()/1000, // micro-second = nanosecond/1000
-			pkt.Metadata().CaptureInfo.Timestamp.UnixMicro(),
-			pkt.Metadata().CaptureInfo.CaptureLength, pkt.Metadata().CaptureInfo.Length, a)
+		// a, _ := pkt.Metadata().CaptureInfo.Timestamp.MarshalText()
+		// fmt.Printf("timestmp: %d, %d = %d  len %d, %d  - %s\n",
+		// 	pkt.Metadata().CaptureInfo.Timestamp.Unix(),
+		// 	pkt.Metadata().CaptureInfo.Timestamp.Nanosecond()/1000, // micro-second = nanosecond/1000
+		// 	pkt.Metadata().CaptureInfo.Timestamp.UnixMicro(),
+		// 	pkt.Metadata().CaptureInfo.CaptureLength, pkt.Metadata().CaptureInfo.Length, a)
 		// var buf = make([]byte, 8)
 		// binary.LittleEndian.PutUint32(buf, uint32(pkt.Metadata().CaptureInfo.Timestamp.Unix()))
 		// binary.LittleEndian.PutUint32(buf[4:], uint32(pkt.Metadata().CaptureInfo.Timestamp.Nanosecond()/1000))
 		// fmt.Println(hex.Dump(buf))
+
+		if nic.IsDropPkt(pkt) {
+			continue
+		}
 
 		pcaphdr := nic.NewPcapHdr(&pkt.Metadata().CaptureInfo)
 		hdrbuf := pcaphdr.Marshal()
@@ -123,11 +127,12 @@ func output(chpkt chan gopacket.Packet) error {
 
 		count++
 		// nic.HandlePkt(pkt)
-		for i := range chszmq {
+		for i := range ch_zmqs {
 			select {
-			case chszmq[i] <- frame:
+			case ch_zmqs[i] <- frame:
 			default:
-				fmt.Printf("to chszmq failed %d\n", i)
+				// fmt.Printf("ch_zmqs %d to %s failed\n", i, zmqConfig.Addrs[i])
+				// count_failed ++
 			}
 		}
 
@@ -140,26 +145,36 @@ func output(chpkt chan gopacket.Packet) error {
 }
 
 func tozmq(chzmq chan []byte, addr string) error {
-	ctx := context.Background()
-	// Socket to talk to clients
-	socket := zmq.NewPush(ctx)
-	defer socket.Close()
-	if err := socket.Dial(addr); err != nil {
-		return fmt.Errorf("zmq dial %s failed: %w", addr, err)
-	}
-	fmt.Printf("connect %s ok", addr)
-	socket.SetOption(zmq.OptionHWM, 1)
+	for {
+		log.Infof("tozmq is connecting... %s", addr)
 
-	for bs := range chzmq {
-		m := zmq.NewMsg(bs)
-		m.Type = zmq.CmdMsg
-		err := socket.Send(m)
-		if err != nil {
-			fmt.Printf("Send failed: %s\n", err)
-			return err
+		ctx := context.Background()
+		socket := zmq.NewPush(ctx, zmq.WithDialerTimeout(5*time.Second))
+		defer socket.Close()
+
+		if err := socket.SetOption(zmq.OptionHWM, 1); err != nil {
+			log.Errorf("zmq.OptionHWM failed: %s", err)
 		}
+		if err := socket.Dial("tcp://" + addr); err != nil {
+			log.Errorf("zmq dial %s failed: %s", addr, err)
+			time.Sleep(5 * time.Second)
+			continue
+		}
+		log.Infof("connect %s ok", addr)
+
+		for bs := range chzmq {
+			m := zmq.NewMsg(bs)
+			m.Type = zmq.CmdMsg
+			err := socket.Send(m)
+			if err != nil {
+				log.Errorf("Sendto %s failed: %s\n", addr, err)
+				break // return err
+			}
+		}
+
 	}
 
+	log.Infof("tozmq end loop %s", addr)
 	return nil
 }
 

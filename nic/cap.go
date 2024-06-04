@@ -41,19 +41,19 @@ func CapIf0(device string, ch chan gopacket.Packet) error {
 	}
 	defer inHandle.CleanUp()
 
+	if err = inHandle.SetPromisc(false); err != nil {
+		return err
+	}
 	if err = inHandle.SetSnapLen(65536); err != nil {
 		return err
 	}
-	if err = inHandle.SetPromisc(false); err != nil {
+	if err = inHandle.SetBufferSize(30 * 1024 * 1024); err != nil {
 		return err
 	}
 	if err = inHandle.SetTimeout(pcap.BlockForever); err != nil {
 		return err
 	}
 	if err = inHandle.SetImmediateMode(true); err != nil { // packets are delivered to the application as soon as they arrive
-		return err
-	}
-	if err = inHandle.SetBufferSize(30 * 1024 * 1024); err != nil {
 		return err
 	}
 
@@ -75,7 +75,7 @@ func CapIf0(device string, ch chan gopacket.Packet) error {
 	}
 	defer handle.Close()
 
-	if err = handle.SetBPFFilter("tcp and port not 22"); err != nil { // optional
+	if err = handle.SetBPFFilter("tcp  port not 22"); err != nil { // optional
 		return err
 	}
 
@@ -125,7 +125,10 @@ func WriteIf(device string, ch chan []byte) error {
 	}
 
 	for frame := range ch {
-		err := handle.WritePacketData(frame)
+		if len(frame) < 20 {
+			continue
+		}
+		err := handle.WritePacketData(frame[20:])
 		if err != nil {
 			log.Printf("WritePacketData failed: %s", err)
 		}

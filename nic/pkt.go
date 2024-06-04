@@ -71,3 +71,21 @@ func ParsePkt(pkt gopacket.Packet) error {
 	}
 	return nil
 }
+
+// check whether filter this packet, if true drop it
+func IsDropPkt(pkt gopacket.Packet) bool {
+	tcpLayer := pkt.Layer(layers.LayerTypeTCP)
+	if tcpLayer != nil {
+		tcp, ok := tcpLayer.(*layers.TCP)
+		if !ok || tcp == nil {
+			return true
+		}
+
+		if tcp.SrcPort == 9265 || tcp.DstPort == 9265 || tcp.SrcPort == 9266 || tcp.DstPort == 9266 {
+			//fmt.Println("IsDropPkt is 9265 or 9266")
+			return true
+		}
+	}
+
+	return false
+}
