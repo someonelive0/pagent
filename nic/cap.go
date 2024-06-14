@@ -128,6 +128,7 @@ func WriteIf(device string, ch chan []byte) error {
 		if len(frame) < 20 {
 			continue
 		}
+		continue
 		err := handle.WritePacketData(frame[20:])
 		if err != nil {
 			log.Printf("WritePacketData failed: %s", err)

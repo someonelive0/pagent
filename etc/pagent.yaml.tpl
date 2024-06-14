@@ -19,7 +19,7 @@ channel_size: 10000
 capture:
   # 指定本地采集的网卡名称,  all采集所有网卡; 名称使用pagent -l 获取
   devices:
-    - \Device\NPF_Loopback
+    - lo
 
   # 设置网卡采集过滤器，libpcap语法, 支持最大长度200
   filter: tcp and not port 9265 and not port 9266 and not port 22

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/hex"
 	"flag"
 	"fmt"
 	"io"
@@ -58,7 +57,7 @@ func main() {
 	log.Infof("myconfig: %s", myconfig.Dump())
 
 	var wg sync.WaitGroup
-	chpkt := make(chan []byte, 10000)
+	chpkt := make(chan []byte, 1000000)
 
 	wg.Add(1)
 	go func() {
@@ -96,16 +95,16 @@ func zmq_pull(chpkt chan []byte) error {
 				// EOF reached
 				fmt.Printf("receiving EOF %s\n", socket.Addr())
 			} else {
-				fmt.Printf("receiving: %s\n", err)
+				fmt.Printf("receiving failed: %s\n", err)
 				continue
 			}
 		}
 
 		b := msg.Clone().Bytes()
-		fmt.Println("Received type ", msg.Type, count, len(b))
+		fmt.Printf("Received type:%d, count:%d, msglen:%d\n", msg.Type, count, len(b))
 
 		if len(b) > 0 { // 最后一个包可能出现长度为0
-			fmt.Println(hex.Dump(b))
+			// fmt.Println(hex.Dump(b))
 
 			chpkt <- b
 		}
