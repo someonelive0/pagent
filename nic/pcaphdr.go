@@ -7,7 +7,9 @@ import (
 	"github.com/google/gopacket"
 )
 
-// pcap header use little endian, header length is 16
+const PCAP_HDR_LEN = 16
+
+// pcap header use big endian, header length is 16
 type PcapHdr struct {
 	Sec    uint32 /* timestamp seconds */
 	Usec   uint32 /* timestamp microseconds */
@@ -16,11 +18,11 @@ type PcapHdr struct {
 }
 
 func (p *PcapHdr) Marshal() []byte {
-	var buf = make([]byte, 16)
-	binary.LittleEndian.PutUint32(buf, p.Sec)
-	binary.LittleEndian.PutUint32(buf[4:], p.Usec)
-	binary.LittleEndian.PutUint32(buf[8:], p.Caplen)
-	binary.LittleEndian.PutUint32(buf[12:], p.Len)
+	var buf = make([]byte, PCAP_HDR_LEN)
+	binary.BigEndian.PutUint32(buf, p.Sec)
+	binary.BigEndian.PutUint32(buf[4:], p.Usec)
+	binary.BigEndian.PutUint32(buf[8:], p.Caplen)
+	binary.BigEndian.PutUint32(buf[12:], p.Len)
 	return buf
 }
 
@@ -34,18 +36,18 @@ func NewPcapHdr(capinfo *gopacket.CaptureInfo) *PcapHdr {
 }
 
 func PcapHdrUnmarshal(buf []byte) (*PcapHdr, error) {
-	if len(buf) < 16 {
-		return nil, fmt.Errorf("unmarshal buffer length is less than 16")
+	if len(buf) < PCAP_HDR_LEN {
+		return nil, fmt.Errorf("unmarshal buffer length is less than %d", PCAP_HDR_LEN)
 	}
 	var hdr = &PcapHdr{
-		Sec:    binary.LittleEndian.Uint32(buf),
-		Usec:   binary.LittleEndian.Uint32(buf),
-		Caplen: binary.LittleEndian.Uint32(buf),
-		Len:    binary.LittleEndian.Uint32(buf),
+		Sec:    binary.BigEndian.Uint32(buf),
+		Usec:   binary.BigEndian.Uint32(buf[4:]),
+		Caplen: binary.BigEndian.Uint32(buf[8:]),
+		Len:    binary.BigEndian.Uint32(buf[12:]),
 	}
 
-	if hdr.Caplen > hdr.Len {
-		return nil, fmt.Errorf("unmarshal pcap header caplen bigger than len, %d > %d", hdr.Caplen, hdr.Len)
-	}
+	// if hdr.Caplen > hdr.Len {
+	// 	return nil, fmt.Errorf("unmarshal pcap header caplen bigger than len, %d > %d", hdr.Caplen, hdr.Len)
+	// }
 	return hdr, nil
 }

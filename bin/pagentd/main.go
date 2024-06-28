@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/binary"
 	"flag"
 	"fmt"
 	"io"
@@ -71,7 +72,8 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		nic.WriteIf(myconfig.PcapOutput.Device, chpkt)
+		// nic.WriteIf(myconfig.PcapOutput.Device, chpkt)
+		worker(chpkt)
 	}()
 
 	wg.Wait()
@@ -96,8 +98,8 @@ func zmq_pull(chpkt chan []byte) error {
 				fmt.Printf("receiving EOF %s\n", socket.Addr())
 			} else {
 				fmt.Printf("receiving failed: %s\n", err)
-				continue
 			}
+			continue
 		}
 
 		b := msg.Clone().Bytes()
@@ -117,11 +119,49 @@ func zmq_pull(chpkt chan []byte) error {
 	}
 }
 
-func toNic(device string, chpkt chan []byte) error {
+func worker(chpkt chan []byte) error {
 
-	err := nic.WriteIf(device, chpkt)
-	if err != nil {
-		return err
+	for msg := range chpkt {
+		msg_len := len(msg)
+		if msg_len == 0 {
+			continue
+		}
+		// fmt.Println(hex.Dump(msg[:12+2+16]))
+		continue
+
+		bathdr, err := BatchPktsHdrUnmarshal(msg)
+		if err != nil {
+			log.Errorf("BatchPktsHdrUnmarshal failed: %s", err)
+		}
+		fmt.Printf("  batch hdr version:%d num:%d keybit:%d clientid:%d\n",
+			bathdr.Version, bathdr.PktsNum, bathdr.KeyBit, bathdr.ClientId)
+
+		offset := BATCH_PKT_HDR_LEN // skip batch pkt hdr
+		for {
+
+			// a short to show frame len
+			if offset+2 > msg_len {
+				break
+			}
+			frame_len := binary.BigEndian.Uint16(msg[offset:])
+			fmt.Printf("\tframe len:%d,\t", frame_len)
+			offset += 2
+
+			// get pcap-hdr
+			if offset+nic.PCAP_HDR_LEN > msg_len {
+				break
+			}
+			pcaphdr, err := nic.PcapHdrUnmarshal(msg[offset:])
+			if err != nil {
+				log.Errorf("PcapHdrUnmarshal failed: %s", err)
+				break
+			}
+			offset += nic.PCAP_HDR_LEN
+
+			fmt.Printf("\tpcaphdr sec:%d usec:%d caplen:%d len:%d\n",
+				pcaphdr.Sec, pcaphdr.Usec, pcaphdr.Caplen, pcaphdr.Len)
+			offset += int(pcaphdr.Caplen)
+		}
 	}
 
 	return nil
