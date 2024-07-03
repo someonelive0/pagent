@@ -1,9 +1,9 @@
 VERSION=3.0.0
 PREFIX=target/pagent-$(VERSION)
 
-# go command for linux and windows.
-GO=CGO_ENABLED=1 go
-PARAMS=-ldflags '-s -w -extldflags "-static"'
+# go command for linux. With libpcap-1.10.4 on path /usr/local/libpcap-1.10.4
+GO=CGO_CFLAGS="-I/usr/local/libpcap-1.10.4/include" go
+PARAMS=-ldflags '-s -w -extldflags "-L/usr/local/libpcap-1.10.4/lib -lpcap"'
 
 # if want to link static libpcap.a then 
 #  CGO_CFLAGS="-I/usr/local/libpcap-1.10.4/include" go build -ldflags '-s -w -extldflags "-L/usr/local/libpcap-1.10.4/lib -lpcap"' ./bin/pagent
@@ -12,7 +12,7 @@ PARAMS=-ldflags '-s -w -extldflags "-static"'
 # upx is a tool to compress executable program.
 UPX=upx
 
-PRGS=pagent pagentd
+PRGS=pagent pagentd pktool
 
 
 all:    $(PRGS)
@@ -22,6 +22,9 @@ pagent:
 
 pagentd:
 	$(GO) build $(PARAMS) -o $@ ./bin/pagentd
+
+pktool:
+	$(GO) build $(PARAMS) -o $@ ./bin/pktool
 
 clean:
 	rm -f $(PRGS)
