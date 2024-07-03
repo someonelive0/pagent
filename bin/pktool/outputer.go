@@ -11,17 +11,45 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func output_file(chpkt chan []byte, stats *PktStats) error {
-	var frame_len int
+var pcap_fp *os.File
 
-	// Open output pcap file and write header
-	f, _ := os.Create("test.pcap")
-	w := pcapgo.NewWriter(f)
-	w.WriteFileHeader(65535, layers.LinkTypeEthernet)
-	defer f.Close()
-	pktOptions := gopacket.DecodeOptions{}
+func output_init(pcap_filename, nic_device *string) error {
+
+	if pcap_filename != nil && len(*pcap_filename) > 0 {
+		f, err := os.Create(*pcap_filename)
+		if err != nil {
+			log.Errorf("create pcap file [%s] failed: %s", *pcap_filename, err)
+			return err
+		}
+		pcap_fp = f
+	}
+
+	return nil
+}
+
+func output_close() error {
+	if pcap_fp != nil {
+		pcap_fp.Close()
+		pcap_fp = nil
+	}
+
+	return nil
+}
+
+func output(chpkt chan []byte, stats *PktStats) error {
+	var frame_len int
+	var w *pcapgo.Writer
+	var pktOptions = gopacket.DecodeOptions{}
 	pktOptions.Lazy = true
 	pktOptions.NoCopy = true
+
+	// Open output pcap file and write header
+	// f, _ := os.Create("test.pcap")
+	if pcap_fp != nil {
+		w = pcapgo.NewWriter(pcap_fp)
+		w.WriteFileHeader(65535, layers.LinkTypeEthernet)
+	}
+	// defer f.Close()
 
 	for frame := range chpkt {
 		frame_len = len(frame)
@@ -59,8 +87,10 @@ func output_file(chpkt chan []byte, stats *PktStats) error {
 		// fmt.Println(pkt.Metadata())
 		// nic.ParsePkt(pkt)
 
-		if err := w.WritePacket(pkt.Metadata().CaptureInfo, pkt.Data()); err != nil {
-			log.Errorf("write packate to file failed: %s", err)
+		if w != nil {
+			if err := w.WritePacket(pkt.Metadata().CaptureInfo, pkt.Data()); err != nil {
+				log.Errorf("write packate to file failed: %s", err)
+			}
 		}
 
 	}

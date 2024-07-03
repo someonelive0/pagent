@@ -64,10 +64,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	err = output_init(arg_pcap_filename, arg_if)
+	if err != nil {
+		log.Errorf("output init failed, %s", err)
+		os.Exit(1)
+	}
+
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		output_file(chpkt, &stats)
+		output(chpkt, &stats)
 	}()
 
 	wg.Add(1)
@@ -102,6 +108,7 @@ func main() {
 		close(chmsg)
 		close(chpkt)
 		wg.Wait()
+		output_close()
 	}
 
 	loopUntilSignal(gracefullExit, timer)
