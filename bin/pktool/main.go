@@ -67,16 +67,21 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		if err := zmq_pull(zmqsock, chmsg); err != nil {
-			log.Errorf("zmq_pull failed: %s", err)
-		}
+		output_file(chpkt, &stats)
 	}()
 
-	// to Devices name
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		worker(chmsg, chpkt, &stats)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		if err := zmq_pull(zmqsock, chmsg); err != nil {
+			log.Errorf("zmq_pull failed: %s", err)
+		}
 	}()
 
 	// timer

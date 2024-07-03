@@ -9,9 +9,11 @@ import (
 )
 
 func worker(chmsg chan []byte, chpkt chan []byte, stats *PktStats) error {
+	var msg_len, frame_len, offset int
+	var i uint16
 
 	for msg := range chmsg {
-		msg_len := len(msg)
+		msg_len = len(msg)
 		if msg_len < nic.BATCH_PKT_HDR_LEN {
 			log.Warnf("zmq msg len %d < %d", msg_len, nic.BATCH_PKT_HDR_LEN)
 			continue
@@ -31,33 +33,25 @@ func worker(chmsg chan []byte, chpkt chan []byte, stats *PktStats) error {
 		}
 		stats.Pkts += uint64(bathdr.PktsNum)
 
-		offset := nic.BATCH_PKT_HDR_LEN // skip batch pkt hdr
+		offset = nic.BATCH_PKT_HDR_LEN // skip batch pkt hdr
 
-		var i uint16 = 0
 		for i = 0; i < bathdr.PktsNum; i++ {
 			if offset+2 > msg_len { // a short to show frame len
 				break
 			}
-			frame_len := binary.BigEndian.Uint16(msg[offset:])
-			// log.Tracef("\tframe len:%d,\t", frame_len)
+			frame_len = int(binary.BigEndian.Uint16(msg[offset:]))
+			// log.Debugf("\tframe len:%d,\t", frame_len)
 			offset += 2
 
-			// get pcap-hdr
-			if offset+nic.PCAP_HDR_LEN > msg_len {
+			if offset+nic.PCAP_HDR_LEN+frame_len > msg_len {
+				log.Warnf("frame len > msglen, %d, %d > %d", offset, frame_len, msg_len)
 				break
+			} else {
+				chpkt <- msg[offset : offset+nic.PCAP_HDR_LEN+frame_len]
+				offset += nic.PCAP_HDR_LEN + frame_len
 			}
-			pcaphdr, err := nic.PcapHdrUnmarshal(msg[offset:])
-			if err != nil {
-				log.Errorf("PcapHdrUnmarshal failed: %s", err)
-				break
-			}
-			offset += nic.PCAP_HDR_LEN
 
-			log.Tracef("frame len:%d,\tpcaphdr sec:%d usec:%d caplen:%d len:%d",
-				frame_len, pcaphdr.Sec, pcaphdr.Usec, pcaphdr.Caplen, pcaphdr.Len)
-			offset += int(pcaphdr.Caplen)
-
-			stats.Bytes += uint64(pcaphdr.Caplen)
+			// stats.Bytes += uint64(pcaphdr.Caplen), pcaphdr.Caplen should == frame_len
 		}
 
 	}

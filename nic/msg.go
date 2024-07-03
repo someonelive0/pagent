@@ -29,3 +29,26 @@ func BatchPktsHdrUnmarshal(buf []byte) (*BatchPktsHdr, error) {
 
 	return hdr, nil
 }
+
+/*
+zmq message format, 32bit align
+
+BatchPktsHdr(12 bytes), based on BatchPktsHdr.PktsNum
+then loop get frame_len(2 bytes), then PCAP_HDR_LEN(16 bytes), then frame(frame_len)
+means a frame = frame_len(2 bytes) + PCAP_HDR_LEN(16 bytes) + frame(frame_len)
+and frame_len should equle PcapHdr.Caplen
+
++---------+---------+
+| Version | PktsNum |
+|      KeyBit       |
+|     ClientId      |
+| FrameLen|   Sec   |
+| Sec     |   Usec  |
+| Usec    | Caplen  |
+| Caplen  | Len     |
+| Len     | Frame...|
+| FrameLen ...      |
++---------+---------+
+
+
+*/
