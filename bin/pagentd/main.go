@@ -7,13 +7,13 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"pagent/nic"
 	"sync"
 	"time"
 
 	zmq "github.com/go-zeromq/zmq4"
 	log "github.com/sirupsen/logrus"
 
+	"pagent/nic"
 	"pagent/utils"
 )
 
@@ -129,14 +129,14 @@ func worker(chpkt chan []byte) error {
 		// fmt.Println(hex.Dump(msg[:12+2+16]))
 		continue
 
-		bathdr, err := BatchPktsHdrUnmarshal(msg)
+		bathdr, err := nic.BatchPktsHdrUnmarshal(msg)
 		if err != nil {
 			log.Errorf("BatchPktsHdrUnmarshal failed: %s", err)
 		}
 		fmt.Printf("  batch hdr version:%d num:%d keybit:%d clientid:%d\n",
 			bathdr.Version, bathdr.PktsNum, bathdr.KeyBit, bathdr.ClientId)
 
-		offset := BATCH_PKT_HDR_LEN // skip batch pkt hdr
+		offset := nic.BATCH_PKT_HDR_LEN // skip batch pkt hdr
 		for {
 
 			// a short to show frame len
