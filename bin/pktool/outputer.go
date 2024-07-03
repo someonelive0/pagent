@@ -7,13 +7,15 @@ import (
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/google/gopacket/pcap"
 	"github.com/google/gopacket/pcapgo"
 	log "github.com/sirupsen/logrus"
 )
 
 var pcap_fp *os.File
+var pcap_handle *pcap.Handle
 
-func output_init(pcap_filename, nic_device *string) error {
+func output_init(pcap_filename, net_device *string) error {
 
 	if pcap_filename != nil && len(*pcap_filename) > 0 {
 		f, err := os.Create(*pcap_filename)
@@ -24,6 +26,16 @@ func output_init(pcap_filename, nic_device *string) error {
 		pcap_fp = f
 	}
 
+	if net_device != nil && len(*net_device) > 0 {
+		handle, err := pcap.OpenLive(*net_device, 65536, true, pcap.BlockForever)
+		if err != nil {
+			log.Printf("pcap OpenLive [%s] failed: %s", *net_device, err)
+			pcap_fp.Close()
+			return err
+		}
+		pcap_handle = handle
+	}
+
 	return nil
 }
 
@@ -31,6 +43,11 @@ func output_close() error {
 	if pcap_fp != nil {
 		pcap_fp.Close()
 		pcap_fp = nil
+	}
+
+	if pcap_handle != nil {
+		pcap_handle.Close()
+		pcap_handle = nil
 	}
 
 	return nil
@@ -90,6 +107,13 @@ func output(chpkt chan []byte, stats *PktStats) error {
 		if w != nil {
 			if err := w.WritePacket(pkt.Metadata().CaptureInfo, pkt.Data()); err != nil {
 				log.Errorf("write packate to file failed: %s", err)
+			}
+		}
+
+		if pcap_handle != nil {
+			err = pcap_handle.WritePacketData(pkt.Data())
+			if err != nil {
+				log.Fatal(err)
 			}
 		}
 

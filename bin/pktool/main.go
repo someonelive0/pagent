@@ -20,7 +20,7 @@ var (
 	arg_version       = flag.Bool("v", false, "version")
 	arg_list          = flag.Bool("l", false, "list devices")
 	arg_port          = flag.Int("p", 9266, "listen port")
-	arg_if            = flag.String("i", "", "write packets to network interface name, such as eth0")
+	arg_net_device    = flag.String("i", "", "write packets to network interface name, such as eth0")
 	arg_pcap_filename = flag.String("w", "", "write packets to pcap file name, such as pkts.pcap")
 	arg_num           = flag.Int("n", 0, "recv pkts batch number, default 0 means no limit")
 	START_TIME        = time.Now()
@@ -64,7 +64,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	err = output_init(arg_pcap_filename, arg_if)
+	err = output_init(arg_pcap_filename, arg_net_device)
 	if err != nil {
 		log.Errorf("output init failed, %s", err)
 		os.Exit(1)

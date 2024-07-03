@@ -123,6 +123,7 @@ func WriteIf(device string, ch chan []byte) error {
 		log.Printf("OpenLive failed: %s", err)
 		return err
 	}
+	defer handle.Close()
 
 	for frame := range ch {
 		if len(frame) < 20 {
