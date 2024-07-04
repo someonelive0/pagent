@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/binary"
+	"sync/atomic"
 
 	log "github.com/sirupsen/logrus"
 
@@ -10,7 +11,7 @@ import (
 
 func worker(chmsg chan []byte, chpkt chan []byte, stats *PktStats) error {
 	var msg_len, frame_len, offset int
-	var i uint16
+	// var i uint16
 
 	for msg := range chmsg {
 		msg_len = len(msg)
@@ -19,7 +20,7 @@ func worker(chmsg chan []byte, chpkt chan []byte, stats *PktStats) error {
 			continue
 		}
 		// fmt.Println(hex.Dump(msg[:12+2+16]))
-		stats.Msgs++
+		atomic.AddUint64(&stats.Msgs, 1)
 
 		bathdr, err := nic.BatchPktsHdrUnmarshal(msg)
 		if err != nil {
@@ -31,11 +32,12 @@ func worker(chmsg chan []byte, chpkt chan []byte, stats *PktStats) error {
 		if bathdr.PktsNum == 0 {
 			continue
 		}
-		stats.Pkts += uint64(bathdr.PktsNum)
+		atomic.AddUint64(&stats.Pkts, uint64(bathdr.PktsNum))
 
 		offset = nic.BATCH_PKT_HDR_LEN // skip batch pkt hdr
 
-		for i = 0; i < bathdr.PktsNum; i++ {
+		// for i = 0; i < bathdr.PktsNum; i++ {
+		for {
 			if offset+2 > msg_len { // a short to show frame len
 				break
 			}
@@ -49,6 +51,7 @@ func worker(chmsg chan []byte, chpkt chan []byte, stats *PktStats) error {
 			} else {
 				chpkt <- msg[offset : offset+nic.PCAP_HDR_LEN+frame_len]
 				offset += nic.PCAP_HDR_LEN + frame_len
+				atomic.AddUint64(&stats.PktsReal, 1)
 			}
 
 			// stats.Bytes += uint64(pcaphdr.Caplen), pcaphdr.Caplen should == frame_len

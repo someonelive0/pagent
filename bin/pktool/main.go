@@ -56,6 +56,7 @@ func main() {
 	chmsg := make(chan []byte, 1000000)
 	chpkt := make(chan []byte, 10000000)
 	stats := PktStats{}
+	tcpstats := NewTcpStats()
 	var wg sync.WaitGroup
 
 	zmqsock, err := zmq_init(*arg_port)
@@ -73,7 +74,7 @@ func main() {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		output(chpkt, &stats)
+		output(chpkt, &stats, tcpstats)
 	}()
 
 	wg.Add(1)
@@ -109,6 +110,7 @@ func main() {
 		close(chpkt)
 		wg.Wait()
 		output_close()
+		log.Infof("tcp stats: %s\n", tcpstats.Dump())
 	}
 
 	loopUntilSignal(gracefullExit, timer)
