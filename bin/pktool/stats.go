@@ -5,10 +5,12 @@ import (
 	"time"
 )
 
+// pkts statistic
 type PktStats struct {
-	Msgs  uint64 `json:"msgs"`  // zmq msgs total
-	Pkts  uint64 `json:"pkts"`  // pcap frames total
-	Bytes uint64 `json:"bytes"` // pcap bytes total
+	Msgs     uint64 `json:"msgs"`      // zmq msgs total
+	Pkts     uint64 `json:"pkts"`      // pcap frames total
+	PktsReal uint64 `json:"pkts_real"` // pcap frames total
+	Bytes    uint64 `json:"bytes"`     // pcap bytes total
 
 	lastBytes uint64
 	lastTimer time.Time

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"pagent/nic"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/gopacket"
@@ -53,7 +55,7 @@ func output_close() error {
 	return nil
 }
 
-func output(chpkt chan []byte, stats *PktStats) error {
+func output(chpkt chan []byte, stats *PktStats, tcpstats *TcpStats) error {
 	var frame_len int
 	var w *pcapgo.Writer
 	var pktOptions = gopacket.DecodeOptions{}
@@ -91,7 +93,7 @@ func output(chpkt chan []byte, stats *PktStats) error {
 			continue
 		}
 
-		stats.Bytes += uint64(pcaphdr.Caplen)
+		atomic.AddUint64(&stats.Bytes, uint64(pcaphdr.Caplen))
 
 		pkt := gopacket.NewPacket(frame[nic.PCAP_HDR_LEN:],
 			layers.LayerTypeEthernet, pktOptions)
@@ -102,7 +104,8 @@ func output(chpkt chan []byte, stats *PktStats) error {
 			pkt.Metadata().Truncated = true
 		}
 		// fmt.Println(pkt.Metadata())
-		// nic.ParsePkt(pkt)
+
+		process_pkt(pkt, tcpstats)
 
 		if w != nil {
 			if err := w.WritePacket(pkt.Metadata().CaptureInfo, pkt.Data()); err != nil {
@@ -113,10 +116,80 @@ func output(chpkt chan []byte, stats *PktStats) error {
 		if pcap_handle != nil {
 			err = pcap_handle.WritePacketData(pkt.Data())
 			if err != nil {
-				log.Fatal(err)
+				log.Errorf("pcap write packet (len %d) to net device failed: %s", pkt.Metadata().CaptureInfo.CaptureLength, err)
 			}
 		}
 
+	}
+
+	return nil
+}
+
+func process_pkt(pkt gopacket.Packet, tcpstats *TcpStats) error {
+	// nic.ParsePkt(pkt)
+
+	ethernetLayer := pkt.Layer(layers.LayerTypeEthernet)
+	if ethernetLayer == nil {
+		return fmt.Errorf("not ethernet packat")
+	}
+	ether, _ := ethernetLayer.(*layers.Ethernet)
+	// Ethernet type is typically IPv4 but could be ARP or other
+	fmt.Printf("  ether type %U, MAC: %s -> %s\n", ether.EthernetType, ether.SrcMAC, ether.DstMAC)
+
+	var ipLayer gopacket.Layer
+	var ipProtocol layers.IPProtocol                   //uint8
+	if ether.EthernetType == layers.EthernetTypeIPv4 { //EthernetTypeIPv4 = 0x0800
+		ipLayer = pkt.Layer(layers.LayerTypeIPv4)
+		if ipLayer != nil {
+			ip, _ := ipLayer.(*layers.IPv4)
+			// IP layer variables:
+			// Version (Either 4 or 6)
+			// IHL (IP Header Length in 32-bit words)
+			// TOS, Length, Id, Flags, FragOffset, TTL, Protocol (TCP?),
+			// Checksum, SrcIP, DstIP
+			fmt.Printf("  ip version %d, protocol %d, %s -> %s\n",
+				ip.Version, ip.Protocol, ip.SrcIP, ip.DstIP)
+			ipProtocol = ip.Protocol
+		}
+	} else if ether.EthernetType == layers.EthernetTypeIPv6 { //EthernetTypeIPv6 = 0x86DD
+		ipLayer = pkt.Layer(layers.LayerTypeIPv6)
+		if ipLayer != nil {
+			ip, _ := ipLayer.(*layers.IPv6)
+			// IP layer variables:
+			// Version (Either 4 or 6)
+			// IHL (IP Header Length in 32-bit words)
+			// TOS, Length, Id, Flags, FragOffset, TTL, Protocol (TCP?),
+			// Checksum, SrcIP, DstIP
+			fmt.Printf("  ip version %d, protocol %d, %s -> %s\n",
+				ip.Version, ip.NextHeader, ip.SrcIP, ip.DstIP)
+			ipProtocol = ip.NextHeader
+		}
+	}
+
+	if ipProtocol == layers.IPProtocolTCP { // IPProtocol = 6
+		tcpLayer := pkt.Layer(layers.LayerTypeTCP)
+		if tcpLayer != nil {
+			tcp, _ := tcpLayer.(*layers.TCP)
+			// TCP layer variables:
+			// SrcPort, DstPort, Seq, Ack, DataOffset, Window, Checksum, Urgent
+			// Bool flags: FIN, SYN, RST, PSH, ACK, URG, ECE, CWR, NS
+			fmt.Printf("  tcp seq %d, port %d -> %d\n", tcp.Seq, tcp.SrcPort, tcp.DstPort)
+			tcpstats.Count(pkt, ether, ipLayer, tcp)
+		} else {
+			log.Warnf("not tcp")
+		}
+
+	} else if ipProtocol == layers.IPProtocolUDP { // IPProtocol = 17
+		udpLayer := pkt.Layer(layers.LayerTypeUDP)
+		if udpLayer != nil {
+			udp, _ := udpLayer.(*layers.TCP)
+			// TCP layer variables:
+			// SrcPort, DstPort, Seq, Ack, DataOffset, Window, Checksum, Urgent
+			// Bool flags: FIN, SYN, RST, PSH, ACK, URG, ECE, CWR, NS
+			fmt.Printf("  udp seq %d, port %d -> %d\n", udp.Seq, udp.SrcPort, udp.DstPort)
+		} else {
+			log.Warnf("not udp")
+		}
 	}
 
 	return nil
