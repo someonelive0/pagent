@@ -164,6 +164,8 @@ func process_pkt(pkt gopacket.Packet, tcpstats *TcpStats) error {
 				ip.Version, ip.NextHeader, ip.SrcIP, ip.DstIP)
 			ipProtocol = ip.NextHeader
 		}
+	} else {
+		return fmt.Errorf("unknown ethernet type %d", ether.EthernetType)
 	}
 
 	if ipProtocol == layers.IPProtocolTCP { // IPProtocol = 6
